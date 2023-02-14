@@ -2,10 +2,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 from tqdm import tqdm
 from chi import chi0h
-from concurrent.futures import ThreadPoolExecutor
 import os
 from collections.abc import Iterable 
-from numba import njit, prange, literal_unroll
+from numba import njit, prange
 
 if os.path.basename(os.getcwd()) != "CRL_OOP":
     os.chdir("CRL_OOP")
@@ -90,9 +89,9 @@ class Point_source(Optical_device):
     def __init__(self, z, En=None, lam=None) -> None:
         super().__init__()
         self.z = z
-        if lam==None:
+        if lam == None:
             self.lam = 12.3984e-10/En
-        elif En==None:
+        elif En == None:
             self.lam = lam
         else:
             print("lam or E not found!")        
@@ -301,19 +300,18 @@ class CRL(Optical_device):
 class CRLm(CRL):
     
     @staticmethod
-    @njit(nogil=True, fastmath=True)
+    @njit
     def foo(arr, phase, b, m):
         return b*np.cos(m*arr+phase)
     
     @staticmethod
-    @njit
+    @njit(fastmath=True)
     def x_arr(arr, phase, s, w, R, b, m, foo):
-
         a = 1/(2*R)
         sq = np.sqrt(1+(2*a*arr)**2)
-        xx = arr-2*a*arr*foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
-        yy = a*arr**2+foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
-        x = s+xx*np.cos(w)-(yy)*np.sin(w)
+        xx = arr - 2*a*arr*foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
+        yy = a*arr**2+foo(arr=arr/2 + arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
+        x = s + xx*np.cos(w) - (yy)*np.sin(w)
         return x
     
     @staticmethod
@@ -321,9 +319,9 @@ class CRLm(CRL):
     def y_arr(arr, phase, w, R, b, m, foo):
         a = 1/(2*R)
         sq = np.sqrt(1+(2*a*arr)**2)
-        xx = arr-2*a*arr*foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
-        yy = a*arr**2+foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
-        y = xx*np.sin(w)+(yy)*np.cos(w) 
+        xx = arr - 2*a*arr*foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
+        yy = a*arr**2 + foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
+        y = xx*np.sin(w) + (yy)*np.cos(w) 
         return y
     
     @staticmethod
@@ -331,22 +329,17 @@ class CRLm(CRL):
     def static_T(x, phase, w, R, s, b, m, h, N, d, y_foo, x_foo, foo):
         minstep = x[1]-x[0]
         t = x
-
         yyy_for_process = y_foo(arr=t, phase=phase, w=w, R=R, b=b, m=m, foo=foo)
         low = np.min(yyy_for_process)
-
         t = t[yyy_for_process<=h] # новое поле t
-
         dt = t[1]-t[0]
-        
         xxx_for_process = x_foo(arr=t, phase=phase, s=s, w=w, R=R, b=b, m=m, foo=foo)
-
         x_start, x_end = np.min(xxx_for_process), np.max(xxx_for_process) # создание нового равномерного поля x (равномеризация сетки)
         x_space = np.arange(x_start, x_end, minstep)
+        len_x_space = len(x_space)
         dx = x_space[1]-x_space[0]
-        
         y_inter = []
-        for i in prange(len(x_space)):
+        for i in prange(len_x_space):
             x0 = x_space[i]
             i_ans = np.argwhere(np.diff(np.sign(x0 - xxx_for_process))).flatten() # поиск пересечения с осью x0
             x_fooi = xxx_for_process[i_ans]
@@ -358,25 +351,16 @@ class CRLm(CRL):
             y_inter.append(y_interi)
         
         y_inter = np.array(y_inter)
-        
         zeroind = int(np.where(x_space == x_space[x_space < 0][-1])[0][0])+1
         alph = int(N/2-zeroind)
         bett = int(N/2-len(x_space)+zeroind)
         x_space_ext1 = np.linspace(x_space[0]-dx, x_space[0]-(alph)*dx, alph)
-
         x_space_ext2 = np.linspace(x_space[-1]+dx, x_space[-1]+(bett)*dx, bett) 
-
         x_space = np.concatenate((x_space_ext1[::-1], x_space, x_space_ext2))
-        
         y_inter_ext1 = np.ones(len(x_space_ext1))*(h-low)
-
         y_inter_ext2 = np.ones(len(x_space_ext2))*(h-low)
-
         y_inter = np.concatenate((y_inter_ext1, y_inter, y_inter_ext2))
-        
-        y_inter = y_inter+low+d/2
-    
-            
+        y_inter = y_inter + low + d/2
         return y_inter, x_space
     
     def __init__(self, b, m, arr_s, arr_w, copy, arr_phase, z, arr_start, R, A, d, N1, lam, molecula, density, Flen, gap) -> None:
@@ -519,7 +503,7 @@ class CRL3(CRL):
         eps = A*1/100
         skobka = (np.sqrt(2*max*R)+eps)
         T_for_T3 = (1/(2*R))*x**2+(max/skobka**3-1/(2*R*skobka))*abs(x)**3
-        T_for_T3[abs(x) >= np.sqrt(2*max*R)+eps]=max
+        T_for_T3[abs(x) >= np.sqrt(2*max*R) + eps]=max
         T_for_T3 = T_for_T3+d/2
         return T_for_T3 
 
@@ -561,8 +545,8 @@ if __name__ == "__main__":
     arr_len = 2 if Copy_flag else 2*N1_global
 
     phases = 2*np.pi*np.random.rand(arr_len)
-    w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*1
-    s_s  = (np.random.rand(arr_len)-0.5)*2e-6*1
+    w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*0
+    s_s  = (np.random.rand(arr_len)-0.5)*2e-6*0
 
     crl = od.CRL(lam=p.lam, arr_start=E_arr,\
                     R=6.25e-6, A=50e-6, d=2e-6, N1=N1_global, z=0,\
@@ -571,7 +555,7 @@ if __name__ == "__main__":
     crlm = od.CRLm(lam=p.lam, arr_start=E_arr,\
                         R=6.25e-6, A=50e-6, d=2e-6, N1=N1_global, z=0,\
                             molecula="Si", density=2.33, Flen=0, gap=0,\
-                                b=1e-6, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
+                                b=1e-6*0, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
     
     """ Распределение интенсивности излучения в фокусе """
 
