@@ -1,6 +1,5 @@
-Python library for modeling and analyzing optical circuits with optical
-device. The library is based on OOP, optical device lib allows you to
-build a circuit with CRL lenses for X-ray radiation.
+Представляется вниманию библиотека-код opticaldevicelib, предназначенный для построения оптических схем с использованием рентгеновского излучения.
+В схеме могут использоваться: точечный источник с заданной энергией или длиной волны, параболические CRL линзы, а также параболические линзы с дефектом шероховатости CRLm. Были использованы несколько методов для ускорения и оптимизации кода такие как JIT-numba и использование FFT на CUDA.
 
 Тестовая реализация кода с помощью opticaldevicelib
 
