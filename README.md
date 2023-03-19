@@ -1,59 +1,25 @@
----
-jupyter:
-  kernelspec:
-    display_name: Python 3.10.0 64-bit
-    language: python
-    name: python3
-  language_info:
-    codemirror_mode:
-      name: ipython
-      version: 3
-    file_extension: .py
-    mimetype: text/x-python
-    name: python
-    nbconvert_exporter: python
-    pygments_lexer: ipython3
-    version: 3.10.0
-  nbformat: 4
-  nbformat_minor: 2
-  orig_nbformat: 4
-  vscode:
-    interpreter:
-      hash: 27f6fea6f47ae512550f0b8facdbd035a93e1dd89633f7bf2dd00a2502c71d0d
----
-
-::: {.cell .markdown}
 Python library for modeling and analyzing optical circuits with optical
 device. The library is based on OOP, optical device lib allows you to
 build a circuit with CRL lenses for X-ray radiation.
-:::
 
-::: {.cell .markdown}
 Тестовая реализация кода с помощью opticaldevicelib
-:::
 
-::: {.cell .code execution_count="1"}
+
 ``` python
 import opticaldevicelib as od
 import numpy as np
 import matplotlib.pyplot as plt
 od.Optical_device.set_value(new_dx=5e-9, new_N=2**15)
 ```
-:::
 
-::: {.cell .markdown}
 Способ инициализации точечного источника c энергией En и распр. ВФ на
 расстоянии z от него
-:::
 
-::: {.cell .code execution_count="2"}
 ``` python
 p = od.Point_source(z=100, En=10) 
 E_arr = p.E()
 ```
-:::
 
-::: {.cell .markdown}
 Пример инициализации пластиковых (C21SO8SiH36) линз (идеальная и
 неидеальная)
 :::
