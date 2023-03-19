@@ -22,9 +22,8 @@ E_arr = p.E()
 
 Пример инициализации пластиковых (C21SO8SiH36) линз (идеальная и
 неидеальная)
-:::
 
-::: {.cell .code execution_count="3"}
+
 ``` python
 # N1_global = 10
 # Copy_flag = False
@@ -44,13 +43,8 @@ E_arr = p.E()
 #                             b=1e-6, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
                                 
 ```
-:::
-
-::: {.cell .markdown}
 Пример инициализации кремниевых (Si) линз (идеальная и неидеальная)
-:::
 
-::: {.cell .code execution_count="21"}
 ``` python
 N1_global = 100
 Copy_flag = True
@@ -69,25 +63,17 @@ crlm = od.CRLm(lam=p.lam, arr_start=E_arr,\
                         molecula="Si", density=2.33, Flen=0, gap=0,\
                             b=2e-7, m=3e8, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
 ```
-:::
 
-::: {.cell .markdown}
 !!!Важно!!! Подсчёт и установка фокусного расстояния для линз
-:::
 
-::: {.cell .code execution_count="22"}
 ``` python
 focus = crl.focus()
 crl.set_z(z=focus)
 crlm.set_z(z=focus)
 ```
-:::
 
-::: {.cell .markdown}
 Распределение интенсивности излучения в фокусе
-:::
 
-::: {.cell .code execution_count="23"}
 ``` python
 plt.plot(p.x, crl.I(), label="numerical CRL")
 plt.plot(p.x, crlm.I(), label="numerical CRLm")
@@ -96,13 +82,4 @@ plt.xlim(-5e-7, 5e-7)
 plt.grid()
 plt.show()
 ```
-
-::: {.output .stream .stderr}
-    100%|██████████| 99/99 [00:00<00:00, 607.29it/s]
-    100%|██████████| 99/99 [00:00<00:00, 775.54it/s]
-:::
-
-::: {.output .display_data}
 ![](vertopal_49f43c458a9e444da55782d0fb585588/99226dcfadbb3ee16ada1870408ca2179b6f38d6.png)
-:::
-:::
