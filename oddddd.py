@@ -2,12 +2,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 from tqdm import tqdm
 from chi import chi0h
-from concurrent.futures import ThreadPoolExecutor
-import os
 from collections.abc import Iterable 
+from numba import njit, prange
 
-# if os.path.basename(os.getcwd()) != "CRL_OOP":
-#     os.chdir("CRL_OOP")
 
 class Optical_device(ABC):
     
@@ -20,18 +17,12 @@ class Optical_device(ABC):
     barr = np.arange(lb, rb) # base array
     x, q = barr*dx, barr*dq # real and reciprocal spaces
     
-    def I(self):
-            return abs(self.E())**2
-    
-    def set_z(self, z):
-        self.z = z
-    
-    def ft1d(self, array):
+    @staticmethod
+    def ft1d(array, dx):
         """
         Calculate normalized Fourier transform of the input 'array';
         return 'ft_array' of the same size
         """
-        dx=self.dx
         n = len(array)
         i = np.arange(0, n)
         c_i = np.exp(1j*np.pi*(1-1/n)*i)
@@ -40,12 +31,12 @@ class Optical_device(ABC):
 
         return ft_array
 
-    def ift1d(self, array):
+    @staticmethod
+    def ift1d(array, dx):
         """
         Calculate normalized inverse Fourier transform of the input 'array';
         return 'ift_array' of the same size
         """
-        dx=self.dx
         n = len(array)
         i = np.arange(0, n)
         c_i = np.exp(-1j*np.pi*(1-1/n)*i)
@@ -54,27 +45,36 @@ class Optical_device(ABC):
 
         return ift_array
     
-    def P(self, x, z, k):
+    @staticmethod
+    @njit
+    def P(x, z, k):
         """ Fresnel propagator """
         # norm=np.exp(1j*lam*z)/(1j*lam*z)
         # norm=1/(1j*lam*z)
-        norm=1
-        osn=np.exp(1j*k*(x**2)/(2*z))
+        norm = 1
+        osn = np.exp(1j*k*(x**2)/(2*z))
         return norm*osn
 
-    def fft_P(self, q, z, k):
+    @staticmethod
+    @njit
+    def fft_P(q, z, k):
         """analytical ft of Fresnel propagator """
         # norm=np.exp(1j*lam*z)/np.sqrt(1j*lam*z)
         # norm=np.sqrt(1j*lam*z)
         # norm=1/np.sqrt(1j*lam*z)
-        norm=1
-        osn=np.exp(-1j*(q**2)*z/(2*k))
+        norm = 1
+        osn = np.exp(-1j*(q**2)*z/(2*k))
         return norm*osn
-
+    
+    def I(self):
+            return abs(self.E())**2
+    
+    def set_z(self, z):
+        self.z = z
+    
     def sv(self, arr, z, k):
         """ convolve arr with analytical ft of Fresnel propagator """
-        q=self.q
-        return self.ift1d(self.ft1d(array=arr)*self.fft_P(q, z, k))
+        return self.ift1d(array=self.ft1d(array=arr, dx=self.dx)*self.fft_P(q=self.q, z=z, k=k), dx=self.dx)
 
     @abstractmethod
     
@@ -86,9 +86,9 @@ class Point_source(Optical_device):
     def __init__(self, z, En=None, lam=None) -> None:
         super().__init__()
         self.z = z
-        if lam==None:
+        if lam == None:
             self.lam = 12.3984e-10/En
-        elif En==None:
+        elif En == None:
             self.lam = lam
         else:
             print("lam or E not found!")        
@@ -122,7 +122,7 @@ class Hole(Optical_device):
 
 class CRL(Optical_device):
     
-    def __init__(self, z, arr_start, R, A, d, N1, lam, molecula, density, Flen, gap, copy=0) -> None:
+    def __init__(self, z, arr_start, R, A, d, N1, lam, molecula, density, Flen, gap, copy=True) -> None:
         super().__init__()
         self.gap = gap
         self.molecula = molecula
@@ -141,7 +141,7 @@ class CRL(Optical_device):
         self.w = 2*self.c*np.pi/self.lam # freq
         self.k = 2*np.pi/self.lam # wavenumber
         
-    def FWHM(self, x_arr=None, y_arr=None):
+    def FWHM_max(self, x_arr=None, y_arr=None):
         
         x_arr = self.x if not isinstance(x_arr, Iterable) else x_arr
         y_arr = self.I() if not isinstance(y_arr, Iterable) else y_arr
@@ -165,7 +165,7 @@ class CRL(Optical_device):
         x_search_0 = (half-b0)/a0
         x_search_1 = (half-b1)/a1
         
-        return x_search_1-x_search_0
+        return x_search_1-x_search_0, max
         
     def T(self, x=None, R=None, A=None, d=None, Flen=None):
         x = self.x if x == None else x  
@@ -217,8 +217,13 @@ class CRL(Optical_device):
             return self.sv(arr=w_f*t1, z=p/2, k=k)
 
         elif copy == False and N1>1:
+            
+            arr_t1 = np.empty((N1, self.N), dtype=complex)
             for step in tqdm(range(N1-1)):
-                t1 = self.Trans(step=step)
+                arr_t1[step] = self.Trans(step=step)
+
+            for step in range(N1-1):
+                t1 = arr_t1[step]
                 w_f = self.sv(arr=w_f*t1, z=p+self.gap, k=k)
             return self.sv(arr=w_f*t1, z=p/2, k=k)
                  
@@ -296,6 +301,69 @@ class CRL(Optical_device):
 
 class CRLm(CRL):
     
+    @staticmethod
+    @njit
+    def foo(arr, phase, b, m):
+        return b*np.cos(m*arr+phase)
+    
+    @staticmethod
+    @njit(fastmath=True)
+    def x_arr(arr, phase, s, w, R, b, m, foo):
+        a = 1/(2*R)
+        sq = np.sqrt(1+(2*a*arr)**2)
+        xx = arr - 2*a*arr*foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
+        yy = a*arr**2+foo(arr=arr/2 + arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
+        x = s + xx*np.cos(w) - (yy)*np.sin(w)
+        return x
+    
+    @staticmethod
+    @njit
+    def y_arr(arr, phase, w, R, b, m, foo):
+        a = 1/(2*R)
+        sq = np.sqrt(1+(2*a*arr)**2)
+        xx = arr - 2*a*arr*foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
+        yy = a*arr**2 + foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase, b=b, m=m)/sq
+        y = xx*np.sin(w) + (yy)*np.cos(w) 
+        return y
+    
+    @staticmethod
+    @njit(parallel=True)
+    def static_T(x, phase, w, R, s, b, m, h, N, d, y_foo, x_foo, foo):
+        minstep = x[1]-x[0]
+        t = x
+        yyy_for_process = y_foo(arr=t, phase=phase, w=w, R=R, b=b, m=m, foo=foo)
+        low = np.min(yyy_for_process)
+        t = t[yyy_for_process<=h] # новое поле t
+        dt = t[1]-t[0]
+        xxx_for_process = x_foo(arr=t, phase=phase, s=s, w=w, R=R, b=b, m=m, foo=foo)
+        x_start, x_end = np.min(xxx_for_process), np.max(xxx_for_process) # создание нового равномерного поля x (равномеризация сетки)
+        x_space = np.arange(x_start, x_end, minstep)
+        len_x_space = len(x_space)
+        dx = x_space[1]-x_space[0]
+        y_inter = np.empty(len_x_space)
+
+        for i in prange(len_x_space):
+            x0 = x_space[i]
+            i_ans = np.argwhere(np.diff(np.sign(x0 - xxx_for_process))).flatten() # поиск пересечения с осью x0
+            x_fooi = xxx_for_process[i_ans]
+            x_fooiplus = xxx_for_process[i_ans+1]
+            t_new = (x0-(x_fooi-((x_fooiplus-x_fooi)/dt)*t[i_ans]))/((x_fooiplus-x_fooi)/dt)  # линейное интерполированное под пересечение значение t
+            y_space = y_foo(arr=t_new, phase=phase, w=w, R=R, b=b, m=m, foo=foo)
+            y_space = np.concatenate((np.array([h]), y_space, np.array([low])))
+            y_inter[i] = np.sum(-np.diff(y_space)[-1::-2])
+        
+        zeroind = int(np.where(x_space == x_space[x_space < 0][-1])[0][0])+1
+        alph = int(N/2-zeroind)
+        bett = int(N/2-len(x_space)+zeroind)
+        x_space_ext1 = np.linspace(x_space[0]-dx, x_space[0]-(alph)*dx, alph)
+        x_space_ext2 = np.linspace(x_space[-1]+dx, x_space[-1]+(bett)*dx, bett) 
+        x_space = np.concatenate((x_space_ext1[::-1], x_space, x_space_ext2))
+        y_inter_ext1 = np.ones(len(x_space_ext1))*(h-low)
+        y_inter_ext2 = np.ones(len(x_space_ext2))*(h-low)
+        y_inter = np.concatenate((y_inter_ext1, y_inter, y_inter_ext2))
+        y_inter = y_inter + low + d/2
+        return y_inter, x_space
+    
     def __init__(self, b, m, arr_s, arr_w, copy, arr_phase, z, arr_start, R, A, d, N1, lam, molecula, density, Flen, gap) -> None:
         # super().__init__(z, arr_start, R, A, d, N1, lam)
         self.gap = gap
@@ -324,37 +392,6 @@ class CRLm(CRL):
         if (copy == True and len(arr_phase) == 2) or (copy == False and len(arr_phase) == self.N1*2):
             self.arr_phase = arr_phase 
     
-    def foo(self, arr, phase, b=None, m=None):
-        b = self.b if b == None else b
-        m = self.m if m == None else m
-        # return b*np.sin(m*x)+b/4*np.cos(m*4*x)+b/8*np.cos(m*8*x)+b/4*np.sin(m*8*x)
-        # return b*np.cos(m*x)
-        # return b*np.cos(m*arr+rand_phase)
-        # phase=2*np.pi*np.random.rand()
-        return b*np.cos(m*arr+phase)
-
-    def x_arr(self, arr, phase, s, w, R=None):
-        R = self.R if R == None else R
-        a = 1/(2*R)
-        h = self.A**2/(8*R)
-        sq = np.sqrt(1+(2*a*arr)**2)
-        xx = arr-2*a*arr*self.foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase)/sq
-        yy = a*arr**2+self.foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase)/sq
-        # x = s+xx*np.cos(w)-(yy-h)*np.sin(w)
-        x = s+xx*np.cos(w)-(yy)*np.sin(w)
-        return x
-
-    def y_arr(self, arr, phase, w, R=None):
-        R = self.R if R == None else R
-        a = 1/(2*R)
-        h = self.A**2/(8*R)
-        sq = np.sqrt(1+(2*a*arr)**2)
-        xx = arr-2*a*arr*self.foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase)/sq
-        yy = a*arr**2+self.foo(arr=arr/2+arr*np.sqrt((a*arr)**2+1/4), phase=phase)/sq
-        # y = h+xx*np.sin(w)+(yy-h)*np.cos(w)  
-        y = xx*np.sin(w)+(yy)*np.cos(w) 
-        return y
-    
     def T(self, phase, s, w, x=None, R=None, A=None, d=None, b=None, m=None, N=None, Flen=None):
         """returns lens thickness considering rough surface"""
 
@@ -369,123 +406,14 @@ class CRLm(CRL):
         
         h = A**2/(8*R)
         
-        minstep = x[1]-x[0]
-        t = x
-        dt = minstep
-
-        yyy_for_process = self.y_arr(arr=t, phase=phase, w=w)
-
+        y_inter, x_space = self.static_T(x=x, phase=phase, w=w, R=R, s=s, b=b, m=m, \
+            h=h, N=N, d=d, y_foo=self.y_arr, x_foo=self.x_arr, foo=self.foo)
         
-        low = np.min(yyy_for_process)
-
-
-        t = t[yyy_for_process<=h] # новое поле t
-
-        
-        dt = t[1]-t[0]
-        
-        xxx_for_process = self.x_arr(arr=t, phase=phase, s=s, w=w)
-        # print(len(xxx_for_process))
-
-        x_start, x_end = np.min(xxx_for_process), np.max(xxx_for_process) # создание нового равномерного поля x (равномеризация сетки)
-        x_space = np.arange(x_start, x_end, minstep)
-        dx = x_space[1]-x_space[0]
-        
-
-        
-
-
-        def process_key_value(x0):
-            i_ans = np.argwhere(np.diff(np.sign(x0 - xxx_for_process))).flatten() # поиск пересечения с осью x0
-            x_fooi = xxx_for_process[i_ans]
-            x_fooiplus = xxx_for_process[i_ans+1]
-            t_new = (x0-(x_fooi-((x_fooiplus-x_fooi)/dt)*t[i_ans]))/((x_fooiplus-x_fooi)/dt)  # линейное интерполированное под пересечение значение t
-            y_space = self.y_arr(arr=t_new, phase=phase, w=w)
-            y_space = np.concatenate(([h], y_space, [low]))
-            y_interi = np.sum(-np.diff(y_space)[-1::-2])  
-            return y_interi
-        
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            res = executor.map(process_key_value, (x_space))
-  
-        y_inter = np.array(list(res))
-
-        y_inter = np.minimum(y_inter, h-low)
-
-        # y_inter = []
-        # for x0 in x_space:
-        #     i_ans = np.argwhere(np.diff(np.sign(x0 - xxx_for_process))).flatten() # поиск пересечения с осью x0
-        #     x_fooi = xxx_for_process[i_ans]
-        #     x_fooiplus = xxx_for_process[i_ans+1]
-        #     t_new = (x0-(x_fooi-((x_fooiplus-x_fooi)/dt)*t[i_ans]))/((x_fooiplus-x_fooi)/dt)  # линейное интерполированное под пересечение значение t
-        #     y_space = self.y_arr(arr=t_new, phase=phase, w=w)
-        #     y_space = np.concatenate(([h], y_space, [low]))
-        #     y_interi = np.sum(-np.diff(y_space)[-1::-2])  
-        #     y_inter.append(y_interi)
-
-        # y_inter = np.array(y_inter)    
-        # y_inter = np.minimum(y_inter, h-low)      
-        zeroind = int(np.where(x_space == x_space[x_space < 0][-1])[0][0])+1
-        alph = int(N/2-zeroind)
-        bett = int(N/2-len(x_space)+zeroind)
-        x_space_ext1 = np.linspace(x_space[0]-dx, x_space[0]-(alph)*dx, alph)
-        x_space_ext2 = np.linspace(x_space[-1]+dx, x_space[-1]+(bett)*dx, bett) 
-        x_space = np.concatenate((x_space_ext1[::-1], x_space, x_space_ext2))
-        
-        y_inter_ext1 = np.ones(len(x_space_ext1))*(h-low)
-        y_inter_ext2 = np.ones(len(x_space_ext2))*(h-low)
-        y_inter = np.concatenate((y_inter_ext1, y_inter, y_inter_ext2))
-        
-        y_inter = y_inter+low+d/2
-
         if Flen != 0:
-            y_inter[abs(x_space)>self.Flen/2] = np.zeros(len(y_inter[abs(x_space)>self.Flen/2]))
+            y_inter[abs(x_space)>Flen/2] = np.zeros(len(y_inter[abs(x_space)>Flen/2]))
 
         return y_inter   
- 
-    def wavy_parabola(self, phase, x=None, R=None, A=None, d=None, b=None, m=None, N=None):
-        
-        """returns lens thickness considering rough surface"""
-
-        x = self.x if not isinstance(x, Iterable) else x
-        R = self.R if R == None else R
-        A = self.A if A == None else A
-        d = self.d if d == None else d
-        b = self.b if b == None else b
-        m = self.m if m == None else m
-        N = self.N if N == None else N
-        
-        h = A**2/(8*R)
-        t = x
-        
-        yyy_for_process = self.y_arr(arr=t, phase=phase)
-        
-        low = np.min(yyy_for_process)
-        
-        t = t[yyy_for_process<=h] # новое поле t
-
-        x_space = self.x_arr(t, phase)
-        dx = x_space[1]-x_space[0]
-        
-        y_inter = self.y_arr(t, phase)
-    
-                
-        # zeroind = int(np.where(x_space == x_space[x_space < 0][-1])[0][0])+1
-        # alph = int(N/2-zeroind)
-        # bett = int(N/2-len(x_space)+zeroind)
-        # x_space_ext1 = np.linspace(x_space[0]-dx, x_space[0]-(alph)*dx, alph)
-        # x_space_ext2 = np.linspace(x_space[-1]+dx, x_space[-1]+(bett)*dx, bett) 
-        # x_space = np.concatenate((x_space_ext1[::-1], x_space, x_space_ext2))
-        
-        # y_inter_ext1 = np.ones(len(x_space_ext1))*(h-low)
-        # y_inter_ext2 = np.ones(len(x_space_ext2))*(h-low)
-        # y_inter = np.concatenate((y_inter_ext1, y_inter, y_inter_ext2))
-        
-        y_inter = y_inter+d/2
-        # print(y_inter)
-
-        return x_space, y_inter   
-  
+     
     def Trans(self, step=None, delta=None, betta=None, k=None):
         """ CRL-lense transmission function """
         delta = self.delta if delta == None else delta  
@@ -533,19 +461,19 @@ class CRL3(CRL):
         eps = A*1/100
         skobka = (np.sqrt(2*max*R)+eps)
         T_for_T3 = (1/(2*R))*x**2+(max/skobka**3-1/(2*R*skobka))*abs(x)**3
-        T_for_T3[abs(x) >= np.sqrt(2*max*R)+eps]=max
+        T_for_T3[abs(x) >= np.sqrt(2*max*R) + eps]=max
         T_for_T3 = T_for_T3+d/2
         return T_for_T3 
 
 if __name__ == "__main__":
-    import time
 
+    import time
     t1 = time.perf_counter()
     
     """Добавление библиотеки в код"""
-    import opticaldevicelib_old as od
+    import oddddd as od
 
-    """Способ инициализации точечного источника с энергией En и распр. ВФ на расстоянии z от него"""
+    """Способ инициализации точечного источника c энергией En и распр. ВФ на расстоянии z от него"""
     p = od.Point_source(z=100, En=10) 
     E_arr = p.E()
 
@@ -574,9 +502,9 @@ if __name__ == "__main__":
     Copy_flag = False
     arr_len = 2 if Copy_flag else 2*N1_global
 
-    phases = 2*np.pi*np.random.rand(arr_len)
-    w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*1
-    s_s  = (np.random.rand(arr_len)-0.5)*2e-6*1
+    phases = 2*np.pi*np.random.rand(arr_len)*0
+    w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*0
+    s_s  = (np.random.rand(arr_len)-0.5)*2e-6*0
 
     crl = od.CRL(lam=p.lam, arr_start=E_arr,\
                     R=6.25e-6, A=50e-6, d=2e-6, N1=N1_global, z=0,\
@@ -585,7 +513,7 @@ if __name__ == "__main__":
     crlm = od.CRLm(lam=p.lam, arr_start=E_arr,\
                         R=6.25e-6, A=50e-6, d=2e-6, N1=N1_global, z=0,\
                             molecula="Si", density=2.33, Flen=0, gap=0,\
-                                b=1e-6, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
+                                b=1e-6*0, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
     
     """ Распределение интенсивности излучения в фокусе """
 
@@ -596,11 +524,10 @@ if __name__ == "__main__":
     crlm.set_z(z=focus) 
 
     import matplotlib.pyplot as plt
-
-    plt.plot(p.x, crl.I(), label="numerical CRL")
+ 
     plt.plot(p.x, crlm.I(), label="numerical CRLm")
     t2 = time.perf_counter()
     print(t2-t1)
     plt.legend()
-    plt.grid()  
-    plt.show()                            
+    plt.grid()
+    plt.show()

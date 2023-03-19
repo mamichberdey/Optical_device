@@ -1,5 +1,8 @@
 import numpy as np
 import os
+import pathlib
+
+parent_dir = os.path.dirname(os.path.abspath(__file__))
 
 def chi0h(energy, molecula, ro):   #molecula in format like 'AlSe8O15'
     F1 = []
@@ -12,8 +15,8 @@ def chi0h(energy, molecula, ro):   #molecula in format like 'AlSe8O15'
     MOL = disassemble(molecula)
 
     for element in MOL['elements']: #Для каждого атома нужно найти значения
-
-        with open(os.path.abspath("chi0_chih/f1f2_Windt.dat") , "r") as f:
+                  
+        with open(os.path.join(parent_dir, "chi0_chih/f1f2_Windt.dat") , "r") as f:
 
             rf = f.readlines()
             l = len(rf)
@@ -89,8 +92,8 @@ def chi0h(energy, molecula, ro):   #molecula in format like 'AlSe8O15'
 
             F1.append(f1)
             F2.append(f2)
-
-        with open(os.path.abspath("chi0_chih/CrossSec-Compton_McMaster.dat"), "r") as f:
+                  
+        with open(os.path.join(parent_dir, "chi0_chih/CrossSec-Compton_McMaster.dat"), "r") as f:
 
             rf = f.readlines()
             l = len(rf)
@@ -120,8 +123,8 @@ def chi0h(energy, molecula, ro):   #molecula in format like 'AlSe8O15'
 
             co.append(float(line))
             Co.append(co)
-
-        with open(os.path.abspath("chi0_chih/AtomicConstants.dat"), "r") as f:
+                  
+        with open(os.path.join(parent_dir, "chi0_chih/AtomicConstants.dat"), "r") as f:
 
             rf = f.readlines()
             l = len(rf)

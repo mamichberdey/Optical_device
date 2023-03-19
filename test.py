@@ -1,15 +1,17 @@
 
-import numpy as np
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor
+class A:
+    
+    def __init__(self, N) -> None:
+        self.N = N
+        
 
+class B(A):
+    
+    def __init__(self, k) -> None:
+        self.k = k 
+    
 
-x = np.array([1,3,6,8,12,25])[::-1]
-# mask = abs(x)<=20 
-
-# np.ma.fix_invalid(x[, mask, copy=False, fill_value=0])
-# print(np.ma.flatnotmasked_edges(mask))
-# x_mask = x if (mask==True).any() else 0
-print(-(np.diff(x)))
-# print(x_mask)
+p = A(N=3)
+B.N = 3
+b = B(k=5)
+print(b.N)

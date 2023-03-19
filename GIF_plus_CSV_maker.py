@@ -24,6 +24,7 @@ crl_I = crl.I()
 df = pd.DataFrame({"x": p.x, "y_crl": crl_I}) # начало создания df и gif-картинки
 df_phases = pd.DataFrame()
 fig, ax = plt.subplots()
+
 def animate(ap):
     ax.clear()
 
