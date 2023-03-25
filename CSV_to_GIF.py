@@ -93,4 +93,5 @@ sin_animation = animation.FuncAnimation(fig, animate,
 sin_animation.save(os.path.abspath("output/anim_changed.gif"), writer='pillow', fps=10, dpi=400) 
 
 time3 = time.perf_counter()
-print("t = "+str(time3-time1))  # конец создания df и gif-картинки
+print(f't = {time3-time1}')  # конец создания df и gif-картинки
+
