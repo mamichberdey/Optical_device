@@ -6,7 +6,7 @@
 Были использованы несколько методов для ускорения и оптимизации кода такие как JIT-компиляция и использование FFT на CUDA.
 
 # Апробация
-С использованием этой библиотеки была написана [дипломная работа](https://github.com/mamichberdey/Optical_device/blob/main/diploma.pdf) [(презентация)](https://github.com/mamichberdey/Optical_device/blob/main/presentation.pdf). Дипломная работа была защищена на отлично, а также является работой победителя в рамках [универсиады "Ломоносов"](https://universiade.msu.ru/file/event/7866/eid7866_attach_9166106f01680b3825bf4aa058b132a589e5d580.pdf).
+С использованием этой библиотеки была написана [дипломная работа](https://github.com/mamichberdey/Optical_device/blob/main/diploma.pdf) и [(презентация)](https://github.com/mamichberdey/Optical_device/blob/main/presentation.pdf). Дипломная работа была защищена на отлично, а также является работой победителя в рамках [универсиады "Ломоносов"](https://universiade.msu.ru/file/event/7866/eid7866_attach_9166106f01680b3825bf4aa058b132a589e5d580.pdf).
 
 
 # Пример реализации
