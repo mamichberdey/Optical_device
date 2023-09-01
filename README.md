@@ -5,6 +5,10 @@
 
 Были использованы несколько методов для ускорения и оптимизации кода такие как JIT-компиляция и использование FFT на CUDA.
 
+С использованием этой библиотеки была написана дипломная работа: https://github.com/mamichberdey/Optical_device/blob/main/diploma.pdf
+И презентация к ней: https://github.com/mamichberdey/Optical_device/blob/main/presentation.pdf
+
+
 Ниже представлен пример реализации кода с помощью opticaldevicelib
 
 
