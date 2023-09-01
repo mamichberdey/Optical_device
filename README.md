@@ -23,7 +23,7 @@ od.Optical_device.set_value(new_dx=5e-9, new_N=2**15)
 
 ``` python
 p = od.Point_source(z=100, En=10) 
-E_arr = p.E()
+E_arr = p.E() # полученная воловая функция от точечного источника
 ```
 
 Пример инициализации пластиковых (C21SO8SiH36) линз (идеальная и
@@ -31,51 +31,51 @@ E_arr = p.E()
 
 
 ``` python
- N1_global = 10
- Copy_flag = False
+ N1_global = 10 # число линз в массиве
+ Copy_flag = False # систематический = True / случайный подход = False
  arr_len = 2 if Copy_flag else 2*N1_global
 
- phases = 2*np.pi*np.random.rand(arr_len)
- w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*1
- s_s  = (np.random.rand(arr_len)-0.5)*2e-6*1
+ phases = 2*np.pi*np.random.rand(arr_len) # фазы шероховатости
+ w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*1 # повороты относительно центров линз
+ s_s  = (np.random.rand(arr_len)-0.5)*2e-6*1 # поперечные сдвиги линз
 
  crl = od.CRL(lam=p.lam, arr_start=E_arr,\
                  R=5e-6, A=24e-6, d=5e-6, N1=N1_global, z=0,\
-                     molecula="C21SO8SiH36", density=1.12, Flen=0, gap=0)
+                     molecula="C21SO8SiH36", density=1.12, Flen=0, gap=0) # инициализация линзы (идеальный профиль)
 
  crlm = od.CRLm(lam=p.lam, arr_start=E_arr,\
                      R=5e-6, A=24e-6, d=5e-6, N1=N1_global, z=0,\
                          molecula="C21SO8SiH36", density=1.12, Flen=0, gap=0,\
-                             b=1e-6, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
+                             b=1e-6, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s) # инициализация линзы (шероховатый случайный профиль)
                                 
 ```
 Пример инициализации кремниевых (Si) линз (идеальная и неидеальная)
 
 ``` python
-N1_global = 100
-Copy_flag = True
+N1_global = 100 # число линз в массиве
+Copy_flag = True # систематический = True / случайный подход = False
 arr_len = 2 if Copy_flag else 2*N1_global
 
-phases = 2*np.pi*np.random.rand(arr_len)*0
-w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*0
-s_s  = (np.random.rand(arr_len)-0.5)*2e-6*0
+phases = 2*np.pi*np.random.rand(arr_len)*0 # фазы шероховатости
+w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*0 # повороты относительно центров линз
+s_s  = (np.random.rand(arr_len)-0.5)*2e-6*0  # поперечные сдвиги линз
 
 crl = od.CRL(lam=p.lam, arr_start=E_arr,\
                 R=6.25e-6, A=50e-6, d=2e-6, N1=N1_global, z=0,\
-                    molecula="Si", density=2.33, Flen=0, gap=0)
+                    molecula="Si", density=2.33, Flen=0, gap=0) # инициализация линзы (идеальный профиль)
 
 crlm = od.CRLm(lam=p.lam, arr_start=E_arr,\
                     R=6.25e-6, A=50e-6, d=2e-6, N1=N1_global, z=0,\
                         molecula="Si", density=2.33, Flen=0, gap=0,\
-                            b=2e-7, m=3e8, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
+                            b=2e-7, m=3e8, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s) # инициализация линзы (шероховатый случайный профиль)
 ```
 
 !!!Важно!!! Подсчёт и установка фокусного расстояния для линз
 
 ``` python
-focus = crl.focus()
-crl.set_z(z=focus)
-crlm.set_z(z=focus)
+focus = crl.focus() # подсчет фокуса по аналитической формуле
+crl.set_z(z=focus) # установка фокуса
+crlm.set_z(z=focus) # установка фокуса
 ```
 
 Распределение интенсивности излучения в фокусе
