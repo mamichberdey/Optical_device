@@ -31,22 +31,22 @@ E_arr = p.E()
 
 
 ``` python
-# N1_global = 10
-# Copy_flag = False
-# arr_len = 2 if Copy_flag else 2*N1_global
+ N1_global = 10
+ Copy_flag = False
+ arr_len = 2 if Copy_flag else 2*N1_global
 
-# phases = 2*np.pi*np.random.rand(arr_len)
-# w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*1
-# s_s  = (np.random.rand(arr_len)-0.5)*2e-6*1
+ phases = 2*np.pi*np.random.rand(arr_len)
+ w_s = (np.random.rand(arr_len)-0.5)*np.pi/180*1
+ s_s  = (np.random.rand(arr_len)-0.5)*2e-6*1
 
-# crl = od.CRL(lam=p.lam, arr_start=E_arr,\
-#                 R=5e-6, A=24e-6, d=5e-6, N1=N1_global, z=0,\
-#                     molecula="C21SO8SiH36", density=1.12, Flen=0, gap=0)
+ crl = od.CRL(lam=p.lam, arr_start=E_arr,\
+                 R=5e-6, A=24e-6, d=5e-6, N1=N1_global, z=0,\
+                     molecula="C21SO8SiH36", density=1.12, Flen=0, gap=0)
 
-# crlm = od.CRLm(lam=p.lam, arr_start=E_arr,\
-#                     R=5e-6, A=24e-6, d=5e-6, N1=N1_global, z=0,\
-#                         molecula="C21SO8SiH36", density=1.12, Flen=0, gap=0,\
-#                             b=1e-6, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
+ crlm = od.CRLm(lam=p.lam, arr_start=E_arr,\
+                     R=5e-6, A=24e-6, d=5e-6, N1=N1_global, z=0,\
+                         molecula="C21SO8SiH36", density=1.12, Flen=0, gap=0,\
+                             b=1e-6, m=3e6, copy=Copy_flag, arr_phase=phases, arr_s=s_s, arr_w=w_s)
                                 
 ```
 Пример инициализации кремниевых (Si) линз (идеальная и неидеальная)
