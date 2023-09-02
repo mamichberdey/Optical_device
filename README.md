@@ -1,4 +1,4 @@
-# opticaldevicelib :mag:
+# Opticaldevicelib :mag:
 Представляется вниманию библиотека-код [opticaldevicelib](https://github.com/mamichberdey/Optical_device/blob/main/opticaldevicelib.py), предназначенная для построения оптических схем с использованием рентгеновского излучения.
 В схеме могут использоваться: точечный источник с заданной энергией или длиной волны, параболические [CRL линзы](https://en.wikipedia.org/wiki/Compound_refractive_lens) и т.д.
 Библиотека предоставляет возможность моделирования нарушения топологии - шероховатость поверхности, сдвиги и повороты элементов.
